@@ -76,10 +76,13 @@ def response_additive(df, treatment_columns, control_columns, channel_params,
 
     y = tau + b_hill.sum(axis=1) + df[control_columns].mul(np.asanyarray(lamb)).sum(axis=1)
 
-    if simulate:
-        y += np.random.normal(0, eps, y.shape[0])
+    noise = None
 
-    return y
+    if simulate:
+        noise = np.random.normal(0, eps, y.shape[0])
+        y += noise
+
+    return y, noise
 
 
 if __name__ =='__main__':
@@ -111,5 +114,5 @@ if __name__ =='__main__':
     ch2_dict = {'alpha': 0.5, 'theta': None, 'L': 4, 'decay': 'geo', 'S': 1, 'K': 0.3, 'beta': 0.5}
     channel_params = {'x': ch1_dict, 'y': ch2_dict}
 
-    y = response_additive(df, treatment_columns, control_columns, channel_params,
+    y, noise = response_additive(df, treatment_columns, control_columns, channel_params,
                       date_col=date_col, tau=tau, lamb=lamb, simulate=simulate, eps=eps)
