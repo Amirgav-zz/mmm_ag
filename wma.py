@@ -121,5 +121,6 @@ if __name__ =='__main__':
     ch2_dict = {'alpha': 0.5, 'theta': None, 'L': 4, 'decay': 'geo', 'S': 1, 'K': 0.3, 'beta': 0.5}
     channel_params = {'x': ch1_dict, 'y': ch2_dict}
 
-    y, noise = response_additive(df, treatment_columns, control_columns, channel_params,
-                      date_col=date_col, tau=tau, lamb=lamb, simulate=simulate, eps=eps)
+    y, noise = response_additive(df, channel_params=channel_params, treatment_columns=treatment_columns,
+                                 control_columns=control_columns,date_col=date_col, tau=tau, lamb=lamb,
+                                 simulate=simulate, eps=eps)
