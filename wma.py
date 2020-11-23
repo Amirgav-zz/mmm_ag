@@ -54,7 +54,7 @@ def beta_hill(x, S, K, beta):
     return beta - (K ** S * beta) / (x ** S + K ** S)
 
 
-def response_additive(df, treatment_columns, control_columns, channel_params,
+def response_additive(df, treatment_columns, channel_params, control_columns=None,
                       date_col='date', tau=0, lamb=None, simulate=False, eps=0.05 ** 2):
     """
     channel_params: dictionary : dictionary of dictionaries, keys = treatment_columns,
@@ -63,6 +63,7 @@ def response_additive(df, treatment_columns, control_columns, channel_params,
     tau: scalar, baseline sales
     lamb: list, effects of control variables
     """
+
     b_hill = pd.DataFrame()
 
     for treatment_col in treatment_columns:
@@ -74,7 +75,11 @@ def response_additive(df, treatment_columns, control_columns, channel_params,
 
         b_hill[treatment_col] = beta_hill(carry_over, params['S'], params['K'], params['beta'])
 
-    y = tau + b_hill.sum(axis=1) + df[control_columns].mul(np.asanyarray(lamb)).sum(axis=1)
+
+    y = tau + b_hill.sum(axis=1)
+
+    if control_columns:
+        y += df[control_columns].mul(np.asanyarray(lamb)).sum(axis=1)
 
     noise = None
 
