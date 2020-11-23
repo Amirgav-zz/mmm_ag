@@ -54,7 +54,7 @@ def beta_hill(x, S, K, beta):
     return beta - (K ** S * beta) / (x ** S + K ** S)
 
 
-def response_additive(df, treatment_columns, channel_params, control_columns=None,
+def response_additive(df, channel_params, treatment_columns=None, control_columns=None,
                       date_col='date', tau=0, lamb=None, simulate=False, eps=0.05 ** 2):
     """
     channel_params: dictionary : dictionary of dictionaries, keys = treatment_columns,
@@ -65,18 +65,20 @@ def response_additive(df, treatment_columns, channel_params, control_columns=Non
     """
 
     b_hill = pd.DataFrame()
+    y = tau
 
-    for treatment_col in treatment_columns:
-        params = channel_params[treatment_col]
+    if treatment_columns:
 
-        carry_over = (
-            carryover(df, params['alpha'], params['theta'],
-                      params['L'], params['decay'], date_col)[treatment_col])
+        for treatment_col in treatment_columns:
+            params = channel_params[treatment_col]
 
-        b_hill[treatment_col] = beta_hill(carry_over, params['S'], params['K'], params['beta'])
+            carry_over = (
+                carryover(df, params['alpha'], params['theta'],
+                          params['L'], params['decay'], date_col)[treatment_col])
 
+            b_hill[treatment_col] = beta_hill(carry_over, params['S'], params['K'], params['beta'])
 
-    y = tau + b_hill.sum(axis=1)
+        y += b_hill.sum(axis=1)
 
     if control_columns:
         y += df[control_columns].mul(np.asanyarray(lamb)).sum(axis=1)
