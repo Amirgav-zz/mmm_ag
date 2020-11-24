@@ -1,5 +1,10 @@
 import pandas as pd
 import numpy as np
+import math
+
+
+def yearly_period(x, amplitude, vertical_shift, period, phase_shift):
+    return amplitude * np.sin((2*math.pi / period) * (x-phase_shift)) + vertical_shift
 
 
 def geoDecay(alpha, L):
@@ -36,9 +41,6 @@ def carryover(df, alpha, theta=None, L=None, decay='geo', date_col='date'):
                     .rolling(window=L, center=False, min_periods=1)
                     .apply(lambda x: np.sum(weights[-len(x):] * x) / np.sum(weights[-len(x):]), raw=False)
                     .reset_index())
-
-    #     columns_dict = {col:col+'_wma_{}'.format(window) for col in columns}
-    #     df_carryover.rename(columns=columns_dict, inplace=True)
 
     return df_carryover
 
@@ -90,37 +92,3 @@ def response_additive(df, channel_params, treatment_columns=None, control_column
         y += noise
 
     return y, noise
-
-
-if __name__ =='__main__':
-    # a = pd.DataFrame({'a': [1, 2, 3, 4, 5, 6, 7], 'b': [4, 5, 6, 21, 3, 4, 5], 'date': [7, 6, 5, 4, 3, 2, 1]})
-    # carryover(a, ['a', 'b'], alpha=0.5, L=3)
-
-    df = pd.DataFrame()
-    df['x'] = np.linspace(start=0, stop=1.5, num=100)
-    df['y'] = np.linspace(start=0, stop=10, num=100)
-    df['z'] = np.linspace(start=0, stop=30, num=100)
-    df['w'] = np.linspace(start=0, stop=200, num=100)
-    df['date'] = np.linspace(start=0, stop=1.5, num=100)
-    treatment_columns = ['x', 'y']
-    control_columns = ['z', 'w']
-    alpha = 0.5
-    L = 4
-    decay = 'geo'
-    date_col = 'date'
-    theta = None
-    S = 1
-    K = 0.5
-    beta = 0.3
-    lamb = [0.5, 0.4]
-    tau = 0
-    simulate = True
-    eps = 0.05 ** 2
-    date_col = 'date'
-    ch1_dict = {'alpha': 0.5, 'theta': None, 'L': 4, 'decay': 'geo', 'S': 1, 'K': 0.3, 'beta': 0.5}
-    ch2_dict = {'alpha': 0.5, 'theta': None, 'L': 4, 'decay': 'geo', 'S': 1, 'K': 0.3, 'beta': 0.5}
-    channel_params = {'x': ch1_dict, 'y': ch2_dict}
-
-    y, noise = response_additive(df, channel_params=channel_params, treatment_columns=treatment_columns,
-                                 control_columns=control_columns,date_col=date_col, tau=tau, lamb=lamb,
-                                 simulate=simulate, eps=eps)
