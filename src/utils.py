@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import math
+import theano
 
 
 def yearly_period(x, amplitude, vertical_shift, period, phase_shift):
@@ -36,7 +37,7 @@ def delayed_adstock(alpha, theta, L):
 
 def carryover(df, alpha, theta=None, L=None, decay='geo', date_col='date'):
     weights = geoDecay(alpha, L) if decay == 'geo' else delayed_adstock(alpha, theta, L)
-
+    theano.shared(np.array(weights))
     df_carryover = (df.set_index(date_col)
                     .rolling(window=L, center=False, min_periods=1)
                     .apply(lambda x: np.sum(weights[-len(x):] * x) / np.sum(weights[-len(x):]), raw=False)

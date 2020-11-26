@@ -3,6 +3,7 @@ import numpy as np
 import random
 from sklearn.preprocessing import MinMaxScaler
 import scipy
+import pymc3 as pm
 from statsmodels.tsa import arima_process as arima
 
 from src.utils import yearly_period, response_additive
@@ -91,3 +92,38 @@ if __name__ =='__main__':
                                      channel_params=channel_params,
                                      control_columns=control_columns, date_col=date_col,
                                      tau=tau, lamb=lamb, simulate=simulate, eps=var_eps)
+
+
+    #### Bayesian simulation ###
+    with pm.Model():
+        # Priors
+
+        alpha = pm.Beta('alpha', 3, 3, shape=3)
+        theta = pm.Normal('theta', 0, 12, shape=3)
+        k = pm.Beta('k', 2, 2, shape=3)
+        s = pm.Gamma('s', 3, 1, shape=3)
+        beta = pm.HalfNormal('beta', sigma=1, shape=3)
+        tau = pm.HalfNormal('intercept', sigma=5)
+        lamb = pm.Normal('lamb', 0, 1)
+        var_eps = pm.InverseGamma('noise', 0.05, 5e-4)
+
+        # params
+        ch1_dict = {'alpha': alpha[0], 'theta': theta[0], 'L': 13, 'decay': 'delayed', 'S': s[0], 'K': k[0],
+                    'beta': beta[0]}
+        ch2_dict = {'alpha': alpha[1], 'theta': theta[1], 'L': 13, 'decay': 'delayed', 'S': s[1], 'K': k[1],
+                    'beta': beta[1]}
+        ch3_dict = {'alpha': alpha[2], 'theta': theta[2], 'L': 13, 'decay': 'delayed', 'S': s[2], 'K': k[2],
+                    'beta': beta[2]}
+        channel_params = {'ch1': ch1_dict, 'ch2': ch2_dict, 'ch3': ch3_dict}
+        lamb_list = [lamb]
+
+        # model
+        mu, noise = response_additive(df=df, treatment_columns=treatment_columns,
+                                      channel_params=channel_params,
+                                      control_columns=control_columns, date_col=date_col,
+                                      tau=tau, lamb=lamb_list, simulate=simulate, eps=var_eps)
+        mu -= noise
+
+        sales_hat = pm.Normal(mu, noise, observed=sales)
+
+        trace = pm.fit(method='svgd')
