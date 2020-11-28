@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import math
 import theano
+import timeit
+
 
 
 def yearly_period(x, amplitude, vertical_shift, period, phase_shift):
@@ -79,8 +81,7 @@ def beta_hill(x, S, K, beta):
     """
     return beta - (K ** S * beta) / (x ** S + K ** S)
 
-
-def response_additive(df, channel_params, treatment_columns=None, control_columns=None,
+def response_additive_pd(df, channel_params, treatment_columns=None, control_columns=None,
                       date_col='date', tau=0, lamb=None, simulate=False, eps=0.05 ** 2):
     """
     channel_params: dictionary : dictionary of dictionaries, keys = treatment_columns,
@@ -89,28 +90,25 @@ def response_additive(df, channel_params, treatment_columns=None, control_column
     tau: scalar, baseline sales
     lamb: list, effects of control variables
     """
+
+    b_hill = pd.DataFrame()
     y = tau
-    data = []
 
     if treatment_columns:
 
         for treatment_col in treatment_columns:
             params = channel_params[treatment_col]
 
-            carry_over = (carryover_theano(
-                df[treatment_col].values, params['alpha'], params['theta'],params['L'], params['decay']))
-            b_hill = [beta_hill(x, params['s'], params['k'], params['beta']) for x in carry_over]
-            data.append(b_hill)
+            carry_over = (
+                carryover(df, params['alpha'], params['theta'],
+                          params['L'], params['decay'], date_col)[treatment_col])
+
+            b_hill[treatment_col] = beta_hill(carry_over, params['S'], params['K'], params['beta'])
+
+        y += b_hill.sum(axis=1)
 
     if control_columns:
-        for col in control_columns:
-            data.append([x*lamb for x in df[col].values])
-
-
-
-
-
-
+        y += df[control_columns].mul(np.asanyarray(lamb)).sum(axis=1)
 
     noise = None
 
@@ -119,3 +117,39 @@ def response_additive(df, channel_params, treatment_columns=None, control_column
         y += noise
 
     return y, noise
+
+
+def response_additive(df, channel_params, treatment_columns=None, control_columns=None, lamb=None):
+    """
+    channel_params: dictionary : dictionary of dictionaries, keys = treatment_columns,
+                    values are dictionaries with the following setup;
+                    {'alpha':0.5, 'theta'=None, 'L':None, 'decay':'geo','S':1, 'K':0.3, 'beta':0.5}
+    tau: scalar, baseline sales
+    lamb: list, effects of control variables
+    """
+    start_time = timeit.default_timer()
+
+    data = []
+    if treatment_columns:
+
+        for treatment_col in treatment_columns:
+            params = channel_params[treatment_col]
+
+            carry_over = (carryover_theano(
+                df[treatment_col].values, params['alpha'], params['theta'],params['L'], params['decay']))
+            b_hill = [beta_hill(x, params['S'], params['K'], params['beta']) for x in carry_over]
+            data.append(b_hill)
+
+    if control_columns:
+        for i, col in enumerate(control_columns):
+            data.append([x*lamb[i] for x in df[col].values])
+
+    y = np.array(data).sum(axis=0).tolist()
+
+    stop_time = timeit.default_timer()
+    print('Time: ', stop_time - start_time)
+
+    return y
+
+
+

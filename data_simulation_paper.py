@@ -1,12 +1,15 @@
 import pandas as pd
 import numpy as np
 import random
+import theano
 from sklearn.preprocessing import MinMaxScaler
 import scipy
 import pymc3 as pm
 from statsmodels.tsa import arima_process as arima
 
 from src.utils import yearly_period, response_additive
+
+import timeit
 
 
 if __name__ =='__main__':
@@ -88,11 +91,14 @@ if __name__ =='__main__':
 
     simulate = True
 
-    # sales, noise = response_additive(df=df, treatment_columns=treatment_columns,
-    #                                  channel_params=channel_params,
-    #                                  control_columns=control_columns, date_col=date_col,
-    #                                  tau=tau, lamb=lamb, simulate=simulate, eps=var_eps)
-
+    sales = response_additive(df=df, treatment_columns=treatment_columns,
+                                     channel_params=channel_params,
+                                     control_columns=control_columns,
+                                     lamb=lamb)
+    sales = np.array(sales) + tau
+    if simulate:
+        noise = np.random.normal(0, var_eps, sales.shape[0])
+        sales += noise
 
     #### Bayesian simulation ###
     with pm.Model():
@@ -117,13 +123,16 @@ if __name__ =='__main__':
         channel_params = {'ch1': ch1_dict, 'ch2': ch2_dict, 'ch3': ch3_dict}
         lamb_list = [lamb]
 
-        # model
-        mu, noise = response_additive(df=df, treatment_columns=treatment_columns,
-                                      channel_params=channel_params,
-                                      control_columns=control_columns, date_col=date_col,
-                                      tau=tau, lamb=lamb_list, simulate=simulate, eps=var_eps, pymc3=True)
-        mu -= noise
+        start_time = timeit.default_timer()
 
-        sales_hat = pm.Normal(mu, noise, observed=sales)
+        # model
+        mu = response_additive(df=df, treatment_columns=treatment_columns,channel_params=channel_params,
+                               control_columns=control_columns, lamb=lamb_list)
+        mu += tau
+
+        stop_time = timeit.default_timer()
+        print('Time: ', stop_time - start_time)
+
+        sales_hat = pm.Normal('sales_hat', mu=mu, noise=var_eps, observed=sales)
 
         trace = pm.fit(method='svgd')
