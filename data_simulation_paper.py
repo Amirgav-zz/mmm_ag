@@ -133,6 +133,6 @@ if __name__ =='__main__':
         stop_time = timeit.default_timer()
         print('Time: ', stop_time - start_time)
 
-        sales_hat = pm.Normal('sales_hat', mu=mu, noise=var_eps, observed=sales)
+        sales_hat = pm.Normal('sales_hat', mu=mu, sigma=var_eps, observed=sales)
 
         trace = pm.fit(method='svgd')
