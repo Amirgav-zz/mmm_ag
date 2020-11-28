@@ -35,12 +35,35 @@ def delayed_adstock(alpha, theta, L):
     return (alpha ** ((np.ones(int(L)).cumsum() - 1) - theta) ** 2)[::-1]
 
 
+def carryover_theano(x, alpha, theta=None, L=None, decay='geo'):
+    """
+
+    :param x: numpy series:
+    :param alpha: theano.tensor.var.TensorVariable  (decay rate)
+    :param theta: theano.tensor.var.TensorVariable (delay of decay)
+    :param L:  scalar:  number of time periods for carryover effect
+    :param decay: str: 'geo' or 'decay
+    :return: numpy series of shape(x), with carryover effect
+    """
+    weights = geoDecay(alpha, L) if decay == 'geo' else delayed_adstock(alpha, theta, L)
+    transformed_x = []
+
+    for t in range(x.shape[0]):
+        upper_index = t + 1
+        current_window_x = x[:upper_index] if (upper_index - L) < 0 else x[upper_index - L:upper_index]
+        t_in_window = len(current_window_x)
+        carried_x = (current_window_x * weights[-t_in_window:]).sum()
+        transformed_x.append(carried_x / weights[-t_in_window:].sum())
+
+    return np.array(transformed_x)
+
+
+
 def carryover(df, alpha, theta=None, L=None, decay='geo', date_col='date'):
     weights = geoDecay(alpha, L) if decay == 'geo' else delayed_adstock(alpha, theta, L)
-    theano.shared(np.array(weights))
     df_carryover = (df.set_index(date_col)
                     .rolling(window=L, center=False, min_periods=1)
-                    .apply(lambda x: np.sum(weights[-len(x):] * x) / np.sum(weights[-len(x):]), raw=False)
+                    .apply(lambda x: (weights[-len(x):] * x).sum() / (weights[-len(x):]).sum(), raw=False)
                     .reset_index())
 
     return df_carryover
@@ -66,25 +89,28 @@ def response_additive(df, channel_params, treatment_columns=None, control_column
     tau: scalar, baseline sales
     lamb: list, effects of control variables
     """
-
-    b_hill = pd.DataFrame()
     y = tau
+    data = []
 
     if treatment_columns:
 
         for treatment_col in treatment_columns:
             params = channel_params[treatment_col]
 
-            carry_over = (
-                carryover(df, params['alpha'], params['theta'],
-                          params['L'], params['decay'], date_col)[treatment_col])
-
-            b_hill[treatment_col] = beta_hill(carry_over, params['S'], params['K'], params['beta'])
-
-        y += b_hill.sum(axis=1)
+            carry_over = (carryover_theano(
+                df[treatment_col].values, params['alpha'], params['theta'],params['L'], params['decay']))
+            b_hill = [beta_hill(x, params['s'], params['k'], params['beta']) for x in carry_over]
+            data.append(b_hill)
 
     if control_columns:
-        y += df[control_columns].mul(np.asanyarray(lamb)).sum(axis=1)
+        for col in control_columns:
+            data.append([x*lamb for x in df[col].values])
+
+
+
+
+
+
 
     noise = None
 

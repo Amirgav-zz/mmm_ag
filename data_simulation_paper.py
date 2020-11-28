@@ -88,10 +88,10 @@ if __name__ =='__main__':
 
     simulate = True
 
-    sales, noise = response_additive(df=df, treatment_columns=treatment_columns,
-                                     channel_params=channel_params,
-                                     control_columns=control_columns, date_col=date_col,
-                                     tau=tau, lamb=lamb, simulate=simulate, eps=var_eps)
+    # sales, noise = response_additive(df=df, treatment_columns=treatment_columns,
+    #                                  channel_params=channel_params,
+    #                                  control_columns=control_columns, date_col=date_col,
+    #                                  tau=tau, lamb=lamb, simulate=simulate, eps=var_eps)
 
 
     #### Bayesian simulation ###
@@ -121,7 +121,7 @@ if __name__ =='__main__':
         mu, noise = response_additive(df=df, treatment_columns=treatment_columns,
                                       channel_params=channel_params,
                                       control_columns=control_columns, date_col=date_col,
-                                      tau=tau, lamb=lamb_list, simulate=simulate, eps=var_eps)
+                                      tau=tau, lamb=lamb_list, simulate=simulate, eps=var_eps, pymc3=True)
         mu -= noise
 
         sales_hat = pm.Normal(mu, noise, observed=sales)
