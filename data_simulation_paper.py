@@ -123,16 +123,12 @@ if __name__ =='__main__':
         channel_params = {'ch1': ch1_dict, 'ch2': ch2_dict, 'ch3': ch3_dict}
         lamb_list = [lamb]
 
-        start_time = timeit.default_timer()
-
         # model
         mu = response_additive(df=df, treatment_columns=treatment_columns,channel_params=channel_params,
                                control_columns=control_columns, lamb=lamb_list)
         mu += tau
 
-        stop_time = timeit.default_timer()
-        print('Time: ', stop_time - start_time)
-
         sales_hat = pm.Normal('sales_hat', mu=mu, sigma=var_eps, observed=sales)
 
+        print('fitting model...')
         trace = pm.fit(method='svgd')
